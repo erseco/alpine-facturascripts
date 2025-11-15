@@ -68,6 +68,9 @@ services:
         echo 'This is a pre-configure command'
       POST_CONFIGURE_COMMANDS: |
         echo 'This is a post-configure command'
+      # Cron configuration (optional)
+      # Set to false to disable automatic cron tasks
+      # RUN_CRON_TASKS: true
 
     volumes:
       - facturascripts_volume:/var/www/html/volume:Z

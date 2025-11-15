@@ -1,0 +1,2 @@
+# FacturaScripts cron - runs every hour
+0 * * * * /usr/bin/php84 /var/www/html/index.php -cron > /dev/null

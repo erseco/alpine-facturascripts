@@ -18,6 +18,7 @@ Repository: https://github.com/erseco/alpine-facturascripts
 - **Uses PHP 8.4 FPM** for better performance, lower CPU usage & memory footprint
 - **Unattended Installation** - skip the web installer with environment variables
 - **Automatic Plugin Installation** - install plugins on first startup via `FS_PLUGINS`
+- **Automatic Cron Tasks** - hourly scheduled tasks via dcron (can be disabled)
 - **Configurable** via environment variables (see Configuration section)
 - **Multi-arch Support:** `amd64`, `arm/v6`, `arm/v7`, `arm64`, `ppc64le`, `s390x`
 - **Optimized** to only use resources when there's traffic (by using PHP-FPM's ondemand process manager)
@@ -218,6 +219,7 @@ You can configure the container using the following environment variables in you
 |-----------------------------|---------------------------------------------------|---------|
 | `PRE_CONFIGURE_COMMANDS`    | Commands to run before starting the configuration |         |
 | `POST_CONFIGURE_COMMANDS`   | Commands to run after finishing the configuration |         |
+| `RUN_CRON_TASKS`            | Enable/disable automatic cron tasks               | `true`  |
 
 ## Advanced Features
 
@@ -352,7 +354,55 @@ docker compose exec facturascripts rm /var/www/html/Plugins/.plugins_installed
 docker compose restart facturascripts
 ```
 
-### 4. Manual Plugin Installation
+### 4. Scheduled Tasks (Cron)
+
+FacturaScripts requires a cron process for certain tasks in some plugins. While not strictly mandatory, **it is highly recommended** to run scheduled tasks.
+
+#### How It Works
+
+The container automatically runs a cron daemon that executes FacturaScripts scheduled tasks **every hour**. This is configured automatically and requires no manual intervention.
+
+The cron executes the following command hourly:
+```bash
+php index.php -cron
+```
+
+#### Disabling Cron Tasks
+
+If you need to disable the cron daemon (for testing or specific deployments), set the `RUN_CRON_TASKS` environment variable to `false`:
+
+```yaml
+environment:
+  RUN_CRON_TASKS: false
+```
+
+#### Manual Cron Execution
+
+You can manually trigger the cron tasks at any time:
+
+**From the browser:**
+```
+http://localhost:8080/cron
+```
+
+**From the command line:**
+```bash
+docker compose exec facturascripts php84 /var/www/html/index.php -cron
+```
+
+#### Verifying Cron Status
+
+Check if the cron daemon is running:
+```bash
+docker compose exec facturascripts ps aux | grep crond
+```
+
+View cron logs:
+```bash
+docker compose logs facturascripts | grep cron
+```
+
+### 5. Manual Plugin Installation
 
 FacturaScripts plugins can also be installed manually through the web interface:
 
@@ -371,7 +421,7 @@ docker cp my-plugin.zip facturascripts:/var/www/html/Plugins/
 docker compose exec facturascripts unzip /var/www/html/Plugins/my-plugin.zip -d /var/www/html/Plugins/
 ```
 
-### 5. Persistent Data
+### 6. Persistent Data
 
 The container uses volumes to persist important data:
 

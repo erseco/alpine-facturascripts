@@ -13,6 +13,7 @@ USER root
 RUN apk add --no-cache \
     unzip wget jq netcat-openbsd \
     php84-bcmath php84-gd php84-gmp php84-intl php84-mysqli php84-pdo php84-pdo_mysql php84-pdo_pgsql php84-pgsql php84-soap php84-zip \
+    dcron libcap \
     && rm -rf /var/cache/apk/*
 
 # FacturaScripts version configuration
@@ -57,6 +58,12 @@ RUN set -x && \
 
 # Copy custom entrypoint scripts
 COPY --chown=nobody rootfs/ /
+
+# Configure crond to run as nobody user
+# crond needs root, so set capabilities on dcron binary
+# https://github.com/inter169/systs/blob/master/alpine/crond/README.md
+RUN chown nobody:nobody /usr/sbin/crond && \
+    setcap cap_setgid=ep /usr/sbin/crond
 
 # Switch to non-privileged user
 USER nobody
