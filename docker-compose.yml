@@ -1,0 +1,72 @@
+---
+services:
+  mariadb:
+    image: mariadb:lts
+    restart: unless-stopped
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: true
+      MYSQL_DATABASE: facturascripts
+      MYSQL_USER: facturascripts
+      MYSQL_PASSWORD: facturascripts
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  facturascripts:
+    image: erseco/alpine-facturascripts
+    build:
+      context: .
+      args:
+        # To use a specific FacturaScripts version, set FS_VERSION
+        # You can find available versions at:
+        # https://facturascripts.com/descargas
+        #
+        # Example:
+        # FS_VERSION: 2025.4
+        FS_VERSION: 2025.5
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      memory_limit: 512M
+      upload_max_filesize: 64M
+      post_max_size: 64M
+      max_execution_time: 300
+      APPLICATION_ENV: development
+      # Database Configuration
+      DB_TYPE: mysql
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: facturascripts
+      DB_USER: facturascripts
+      DB_PASSWORD: facturascripts
+      # FacturaScripts Initial Setup (for unattended installation)
+      FS_INITIAL_USER: admin
+      FS_INITIAL_PASS: Admin1234
+      FS_LANG: es_ES
+      FS_TIMEZONE: Europe/Madrid
+      # FacturaScripts Advanced Configuration
+      FS_COOKIES_EXPIRE: 31536000
+      FS_ROUTE: ""
+      FS_DB_FOREIGN_KEYS: true
+      FS_DB_TYPE_CHECK: true
+      FS_MYSQL_CHARSET: utf8mb4
+      FS_MYSQL_COLLATE: utf8mb4_unicode_520_ci
+      FS_DEBUG: false
+      FS_HIDDEN_PLUGINS: ""
+      FS_DISABLE_RM_PLUGINS: false
+      FS_DISABLE_ADD_PLUGINS: false
+      FS_DISABLE_RM_USERS: false
+      # Optional pre/post configure commands
+      PRE_CONFIGURE_COMMANDS: |
+        echo 'This is a pre-configure command'
+      POST_CONFIGURE_COMMANDS: |
+        echo 'This is a post-configure command'
+
+    volumes:
+      - facturascripts_volume:/var/www/html/volume:Z
+    depends_on:
+      - mariadb
+
+volumes:
+  mariadb_data:
+  facturascripts_volume:

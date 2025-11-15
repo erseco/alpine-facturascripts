@@ -1,0 +1,38 @@
+---
+services:
+  app:
+    build: .
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: facturascripts
+      DB_USER: facturascripts
+      DB_PASSWORD: facturascripts
+      FS_INITIAL_USER: admin
+      FS_INITIAL_PASS: Admin1234
+      FS_LANG: es_ES
+      FS_TIMEZONE: UTC
+      FS_DEBUG: false
+
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: mariadb:lts
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: true
+      MYSQL_ROOT_PASSWORD: facturascripts
+      MYSQL_DATABASE: facturascripts
+      MYSQL_USER: facturascripts
+      MYSQL_PASSWORD: facturascripts
+
+  sut:
+    image: alpine:latest
+    depends_on:
+      - app
+    environment:
+      - SOURCE_BRANCH
+    command: /tmp/run_tests.sh
+    volumes:
+      - "./run_tests.sh:/tmp/run_tests.sh:ro"
