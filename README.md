@@ -7,7 +7,7 @@
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/erseco/alpine-facturascripts/build.yml?branch=main)
 
-A lightweight FacturaScripts Docker image built on Alpine Linux. (~145MB)
+A lightweight FacturaScripts Docker image built on Alpine Linux. (~30MB)
 
 Repository: https://github.com/erseco/alpine-facturascripts
 
