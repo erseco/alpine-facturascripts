@@ -30,11 +30,11 @@ jobs:
             ${{ github.repository }}
             ghcr.io/${{ github.repository }}
           tags: |
-            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/main' }}
 
       # Step 3: Set up QEMU for multi-platform builds
       - name: Set up QEMU
@@ -86,6 +86,8 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
+            # Remove 'v' prefix if present
+            VERSION=${VERSION#v}
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
           else
             echo "version=2025.5" >> $GITHUB_OUTPUT
