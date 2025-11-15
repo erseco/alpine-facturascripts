@@ -12,4 +12,4 @@ echo "FacturaScripts is ready"
 # Give it another 3 seconds.
 sleep 3;
 
-curl --silent --fail http://app:8080 | grep -i 'facturascripts'
+curl --silent --fail http://app:8080/login | grep -i 'facturascripts'
