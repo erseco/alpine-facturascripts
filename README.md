@@ -2,20 +2,29 @@
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/erseco/alpine-facturascripts.svg)](https://hub.docker.com/r/erseco/alpine-facturascripts/)
 ![Docker Image Size](https://img.shields.io/docker/image-size/erseco/alpine-facturascripts)
+![nginx 1.28](https://img.shields.io/badge/nginx-1.28-brightgreen.svg)
+![php 8.4](https://img.shields.io/badge/php-8.4-brightgreen.svg)
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Build Status](https://img.shields.io/github/actions/workflow/status/erseco/alpine-facturascripts/build.yml?branch=main)
 
-A lightweight and secure FacturaScripts setup for Docker, built on Alpine Linux. This image is optimized for performance and size, making it an ideal choice for development and production environments.
+A lightweight FacturaScripts Docker image built on Alpine Linux. (~145MB)
 
 Repository: https://github.com/erseco/alpine-facturascripts
 
 ## Key Features
 
-- **Lightweight:** Built on the `erseco/alpine-php-webserver` base image for a minimal footprint.
-- **Performant:** Uses PHP-FPM with an `ondemand` process manager to optimize resource usage.
-- **Secure:** Services run under a non-privileged user (`nobody`). Logs are directed to the container's STDOUT.
-- **Multi-Arch Support:** `amd64`, `arm/v6`, `arm/v7`, `arm64`, `ppc64le`, `s390x`.
-- **Configurable:** Easily configure the container using environment variables.
-- **Simple & Transparent:** Follows the KISS principle for easy understanding and customization.
+- **Built on** the lightweight image [erseco/alpine-php-webserver](https://github.com/erseco/alpine-php-webserver)
+- **Compact** Docker image size (~145MB)
+- **Uses PHP 8.4 FPM** for better performance, lower CPU usage & memory footprint
+- **Unattended Installation** - skip the web installer with environment variables
+- **Configurable** via environment variables (see Configuration section)
+- **Multi-arch Support:** `amd64`, `arm/v6`, `arm/v7`, `arm64`, `ppc64le`, `s390x`
+- **Optimized** to only use resources when there's traffic (by using PHP-FPM's ondemand process manager)
+- **Uses runit** instead of supervisord to reduce memory footprint
+- **Services run** under a non-privileged user (`nobody`) for improved security
+- **Logs** are sent to container's STDOUT (`docker logs -f <container>`)
+- **Extensible** via pre/post configuration hooks
+- **Follows the KISS principle** (Keep It Simple, Stupid) to make it easy to understand and adjust
 
 ## What is FacturaScripts?
 
@@ -30,7 +39,40 @@ FacturaScripts is a free and open-source accounting and billing software for sma
 
 Learn more at [https://facturascripts.com](https://facturascripts.com)
 
+## Important Notes
+
+- **Change default credentials:** Always override `FS_INITIAL_USER` and `FS_INITIAL_PASS` with secure values.
+- **First startup:** The first time you start the container, FacturaScripts will rebuild its dynamic classes. This may take a few seconds.
+- **Database permissions:** Ensure the database user has permissions to create tables and modify the database structure.
+
 ## Usage
+
+### From Docker Hub
+
+```bash
+docker compose up
+```
+
+Log in using the credentials defined by environment variables.
+
+### From GHCR
+
+```yaml
+services:
+  facturascripts:
+    image: ghcr.io/erseco/alpine-facturascripts
+    # rest of your config
+```
+
+### Running Commands as Root
+
+In certain situations, you might need to run commands as root within your FacturaScripts container, for example, to install additional packages. You can do this using the `docker compose exec` command with the `--user root` option:
+
+```bash
+docker compose exec --user root facturascripts sh
+```
+
+## Minimal docker-compose.yml Example
 
 Here is a minimal `docker-compose.yml` example with **unattended installation**:
 
@@ -175,17 +217,19 @@ You can configure the container using the following environment variables in you
 
 ## Advanced Features
 
-### Using Different FacturaScripts Versions
+### 1. Using Different FacturaScripts Versions
 
-You can specify a different FacturaScripts version by setting the `FS_VERSION` build argument in your `docker-compose.yml`:
+Calling `docker compose build` uses the latest stable version of FacturaScripts (2025.5). If you need to use a specific FacturaScripts version, you can specify it using the `FS_VERSION` build argument.
+
+To use a specific version, edit the build section for the facturascripts service in your `docker-compose.yml` file:
 
 ```yaml
-services:
-  facturascripts:
-    build:
-      context: .
-      args:
-        FS_VERSION: 2025.4
+facturascripts:
+  image: erseco/alpine-facturascripts
+  build:
+    context: .
+    args:
+      FS_VERSION: 2025.4  # Replace with your desired version
 ```
 
 Available versions can be found at [https://facturascripts.com/descargas](https://facturascripts.com/descargas)
@@ -195,46 +239,53 @@ After changing the version, rebuild the image:
 docker compose build facturascripts
 ```
 
-### Persistent Data
+### 2. Pre/Post Configuration Hooks
 
-The container uses volumes to persist important data:
+You can define commands to be executed before and after the configuration of FacturaScripts using the `PRE_CONFIGURE_COMMANDS` and `POST_CONFIGURE_COMMANDS` environment variables. These can be useful for tasks such as installing additional packages or running scripts.
 
-- `/var/www/html/volume/MyFiles` - Uploaded files and documents
-- `/var/www/html/volume/Plugins` - Installed plugins
+```yaml
+environment:
+  PRE_CONFIGURE_COMMANDS: "cat /var/www/html/htaccess-sample"
+  POST_CONFIGURE_COMMANDS: |
+    echo 'FacturaScripts configured successfully'
+    # Add any post-installation tasks here
+```
 
-Make sure to properly back up these volumes to prevent data loss.
-
-### Installing Plugins
+### 3. Installing Plugins
 
 FacturaScripts plugins can be installed through the web interface:
 
 1. Log in to your FacturaScripts installation
-2. Go to Admin Panel > Plugins
+2. Go to **Admin Panel > Plugins**
 3. Search for the plugin you want to install
 4. Click "Install"
 
-Alternatively, you can manually place plugin files in the `/var/www/html/Plugins` directory.
-
-### Running Commands as Root
-
-If you need to run commands as `root` inside the container (e.g., to install system packages), use `docker compose exec`:
+Alternatively, you can manually place plugin files in the `/var/www/html/Plugins` directory:
 
 ```bash
-docker compose exec --user root facturascripts sh
+# Copy plugin to the container
+docker cp my-plugin.zip facturascripts:/var/www/html/Plugins/
+
+# Extract if needed
+docker compose exec facturascripts unzip /var/www/html/Plugins/my-plugin.zip -d /var/www/html/Plugins/
 ```
 
-### Pre and Post Configure Commands
+### 4. Persistent Data
 
-You can execute custom commands before and after the configuration process using the `PRE_CONFIGURE_COMMANDS` and `POST_CONFIGURE_COMMANDS` environment variables:
+The container uses volumes to persist important data:
 
-```yaml
-environment:
-  PRE_CONFIGURE_COMMANDS: |
-    echo 'Running pre-configure tasks'
-    # Add your custom commands here
-  POST_CONFIGURE_COMMANDS: |
-    echo 'Running post-configure tasks'
-    # Add your custom commands here
+- `/var/www/html/volume/MyFiles` - Uploaded files, documents, and configuration
+- `/var/www/html/volume/Plugins` - Installed plugins
+
+**Important:** Make sure to properly back up these volumes to prevent data loss.
+
+Example backup command:
+```bash
+# Backup MyFiles
+docker run --rm -v alpine-facturascripts_facturascripts_volume:/data -v $(pwd):/backup alpine tar czf /backup/facturascripts-backup-$(date +%Y%m%d).tar.gz -C /data .
+
+# Backup database
+docker compose exec mariadb mysqldump -u facturascripts -pfacturascripts facturascripts > facturascripts-db-$(date +%Y%m%d).sql
 ```
 
 ## Supported Databases
@@ -253,6 +304,45 @@ To use PostgreSQL, change the `DB_TYPE` environment variable to `postgresql` and
 - **Regular backups:** Implement a backup strategy for both the database and the volume data.
 - **Keep updated:** Regularly update to the latest FacturaScripts version to get security patches.
 
+## Maintenance Tips
+
+### Install Additional Alpine Packages (as root)
+
+```bash
+docker compose exec --user root facturascripts sh -c "apk update && apk add nano"
+```
+
+### Access FacturaScripts Logs
+
+```bash
+docker compose logs -f facturascripts
+```
+
+### Manual Database Rebuild
+
+If you need to manually rebuild FacturaScripts dynamic classes:
+
+```bash
+# Access the rebuild endpoint
+curl "http://localhost:8080/deploy?action=rebuild&token=$(docker compose exec facturascripts grep -o 'token=[^"]*' /var/www/html/Core/Controller/Deploy.php | cut -d'=' -f2 | head -1)"
+```
+
+### Clear Cache
+
+```bash
+docker compose exec facturascripts rm -rf /var/www/html/MyFiles/Cache/*
+```
+
+### Database Console Access
+
+```bash
+# MySQL/MariaDB
+docker compose exec mariadb mysql -u facturascripts -pfacturascripts facturascripts
+
+# PostgreSQL
+docker compose exec postgres psql -U facturascripts -d facturascripts
+```
+
 ## Troubleshooting
 
 ### FacturaScripts shows a database connection error
@@ -270,7 +360,21 @@ The container runs as the `nobody` user for security. If you encounter permissio
 
 ### Installation wizard doesn't appear
 
-If the database is already configured, FacturaScripts will skip the installation wizard. Check if there's an existing `config.php` file in the MyFiles directory.
+If the database is already configured, FacturaScripts will skip the installation wizard. Check if there's an existing `config.php` file in the root directory (`/var/www/html/config.php`).
+
+### Error: Class "FacturaScripts\Dinamic\Model\..." not found
+
+This error occurs when FacturaScripts needs to rebuild its dynamic classes. Access the rebuild endpoint:
+
+```bash
+curl "http://localhost:8080/deploy?action=rebuild"
+```
+
+Or restart the container:
+
+```bash
+docker compose restart facturascripts
+```
 
 ## Contributing
 
@@ -284,3 +388,28 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Based on [erseco/alpine-php-webserver](https://github.com/erseco/alpine-php-webserver)
 - FacturaScripts by [FacturaScripts](https://facturascripts.com)
+
+---
+
+## About
+
+FacturaScripts docker image based on Alpine Linux.
+
+**Docker Hub:** [hub.docker.com/r/erseco/alpine-facturascripts](https://hub.docker.com/r/erseco/alpine-facturascripts)
+
+### Topics
+- `docker`
+- `nginx`
+- `lightweight`
+- `alpine`
+- `accounting`
+- `billing`
+- `facturascripts`
+- `erp`
+- `php8`
+
+### Resources
+- 📖 [README](README.md)
+- 📜 [License: MIT](LICENSE)
+- 🐛 [Issues](https://github.com/erseco/alpine-facturascripts/issues)
+- 🔀 [Pull Requests](https://github.com/erseco/alpine-facturascripts/pulls)
