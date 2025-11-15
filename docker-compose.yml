@@ -62,7 +62,7 @@ services:
       #   FS_PLUGINS: "verifactu multiempresa"
       #   FS_PLUGINS: "448 464"
       #   FS_PLUGINS: "https://facturascripts.com/DownloadBuild/448/stable"
-      # FS_PLUGINS: "verifactu webportal"
+      FS_PLUGINS: "verifactu"
       # Optional pre/post configure commands
       PRE_CONFIGURE_COMMANDS: |
         echo 'This is a pre-configure command'
