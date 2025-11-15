@@ -50,7 +50,7 @@ configure_htaccess() {
 }
 
 configure_facturascripts() {
-    local config_file="/var/www/html/MyFiles/config.php"
+    local config_file="/var/www/html/config.php"
 
     # Only configure if database environment variables are set
     if [ -n "${DB_HOST:-}" ] && [ -n "${DB_NAME:-}" ] && [ -n "${DB_USER:-}" ] && [ -n "${DB_PASSWORD:-}" ]; then
@@ -138,6 +138,16 @@ configure_htaccess
 
 # Configure FacturaScripts
 configure_facturascripts
+
+# Trigger initial rebuild if config.php was just created and Dinamic folder is empty
+if [ -f "/var/www/html/config.php" ] && [ -n "${FS_INITIAL_USER:-}" ]; then
+    if [ ! -f "/var/www/html/Dinamic/.rebuild_done" ]; then
+        echo "Triggering initial FacturaScripts rebuild..."
+        # We'll create a marker file after first successful access
+        # For now, just log that rebuild will happen on first web access
+        touch /var/www/html/Dinamic/.rebuild_needed
+    fi
+fi
 
 # Execute post-configure commands if the variable is set
 if [ -n "${POST_CONFIGURE_COMMANDS:-}" ]; then
