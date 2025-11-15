@@ -12,9 +12,32 @@ LABEL org.opencontainers.image.source="https://github.com/erseco/alpine-facturas
 USER root
 RUN apk add --no-cache \
     unzip wget jq netcat-openbsd \
-    php84-bcmath php84-gd php84-gmp php84-intl php84-mysqli php84-pdo php84-pdo_mysql php84-pdo_pgsql php84-pgsql php84-soap php84-zip \
-    dcron libcap \
-    && rm -rf /var/cache/apk/*
+    php84-bcmath \
+    php84-ctype \
+    php84-dom \
+    php84-gd \
+    php84-gmp \
+    php84-intl \
+    php84-mysqli \
+    php84-pdo \
+    php84-pdo \
+    php84-pdo_mysql \
+    php84-pdo_pgsql \
+    php84-pgsql \
+    php84-soap \
+    php84-tokenizer \
+    php84-xml \
+    php84-xmlreader \
+    php84-xmlwriter \
+    php84-zip \
+    dcron \
+    libcap && \
+# Install Composer manually (latest version compatible with PHP 8.4)
+    curl -sS https://getcomposer.org/installer | php84 -d allow_url_fopen=1 && \
+    mv composer.phar /usr/local/bin/composer && \
+    chmod +x /usr/local/bin/composer && \
+# Clean APK cache
+    rm -rf /var/cache/apk/*
 
 # FacturaScripts version configuration
 ARG FS_VERSION=2025.5
