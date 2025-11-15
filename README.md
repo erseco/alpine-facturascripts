@@ -14,9 +14,10 @@ Repository: https://github.com/erseco/alpine-facturascripts
 ## Key Features
 
 - **Built on** the lightweight image [erseco/alpine-php-webserver](https://github.com/erseco/alpine-php-webserver)
-- **Compact** Docker image size (~30MB)
+- **Compact** Docker image size (~145MB)
 - **Uses PHP 8.4 FPM** for better performance, lower CPU usage & memory footprint
 - **Unattended Installation** - skip the web installer with environment variables
+- **Automatic Plugin Installation** - install plugins on first startup via `FS_PLUGINS`
 - **Configurable** via environment variables (see Configuration section)
 - **Multi-arch Support:** `amd64`, `arm/v6`, `arm/v7`, `arm64`, `ppc64le`, `s390x`
 - **Optimized** to only use resources when there's traffic (by using PHP-FPM's ondemand process manager)
@@ -197,6 +198,9 @@ You can configure the container using the following environment variables in you
 | `FS_DISABLE_RM_PLUGINS` | Disable plugin removal                      | `false`                    |
 | `FS_DISABLE_ADD_PLUGINS`| Disable plugin installation                 | `false`                    |
 | `FS_DISABLE_RM_USERS`   | Disable user removal                        | `false`                    |
+| `FS_PLUGINS`            | Space-separated list of plugins to install  | `""`                       |
+
+**Note about `FS_PLUGINS`:** Supports plugin names, download IDs, or full URLs. Plugins are installed only on first startup. See "Automatic Plugin Installation" section for details.
 
 ### PHP & Webserver
 
@@ -251,9 +255,106 @@ environment:
     # Add any post-installation tasks here
 ```
 
-### 3. Installing Plugins
+### 3. Automatic Plugin Installation
 
-FacturaScripts plugins can be installed through the web interface:
+This image supports **automatic plugin installation** on first startup, similar to the Omeka-S image. You can specify which plugins to install using the `FS_PLUGINS` environment variable.
+
+#### Supported Formats
+
+The `FS_PLUGINS` variable accepts plugins in multiple formats:
+
+1. **Plugin Names** (mapped to download IDs):
+   ```yaml
+   FS_PLUGINS: "verifactu multiempresa webportal"
+   ```
+
+2. **Download IDs** (numeric):
+   ```yaml
+   FS_PLUGINS: "448 464 460"
+   ```
+
+3. **Full URLs**:
+   ```yaml
+   FS_PLUGINS: "https://facturascripts.com/DownloadBuild/448/stable"
+   ```
+
+4. **Mixed formats**:
+   ```yaml
+   FS_PLUGINS: |
+     verifactu
+     464
+     https://custom-site.com/my-plugin.zip
+   ```
+
+#### Common Plugins
+
+| Plugin Name       | ID  | Description                      | URL                                      |
+|-------------------|-----|----------------------------------|------------------------------------------|
+| `verifactu`       | 448 | VERI*FACTU compliance for Spain  | [Info](https://facturascripts.com/plugins/verifactu) |
+| `multiempresa`    | 464 | Multi-company management         | [Info](https://facturascripts.com/plugins/multiempresa) |
+| `webportal`       | 460 | Customer web portal              | [Info](https://facturascripts.com/plugins/webportal) |
+| `openpaypf`       | 400 | OpenPay payment gateway          | [Info](https://facturascripts.com/plugins/openpaypf) |
+| `notificaciones`  | 356 | Notifications system             | [Info](https://facturascripts.com/plugins/notificaciones) |
+| `pagosonline`     | 391 | Online payments                  | [Info](https://facturascripts.com/plugins/pagosonline) |
+
+#### Example Configuration
+
+```yaml
+services:
+  facturascripts:
+    image: erseco/alpine-facturascripts
+    environment:
+      # ... other variables ...
+      FS_PLUGINS: "verifactu multiempresa"
+```
+
+#### How It Works
+
+1. On first container startup (when no `.plugins_installed` marker exists)
+2. Each plugin is downloaded from the specified source
+3. Plugins are installed using FacturaScripts' `Plugins::add()` API
+4. Plugins are automatically enabled using `Plugins::enable()`
+5. A marker file is created to prevent reinstallation on subsequent startups
+6. **If any plugin fails to install, the container startup will fail** to ensure consistency
+
+#### Important Notes
+
+- Plugins are only installed **once** on first startup
+- To reinstall plugins, remove the `.plugins_installed` marker file from the Plugins directory
+- If a plugin installation fails, the entire container startup is aborted
+- Custom plugin URLs must point directly to a valid ZIP file
+- All plugins must contain a valid `facturascripts.ini` file
+
+#### Troubleshooting Plugin Installation
+
+**Plugin not found:**
+```bash
+# Check available plugins at facturascripts.com
+# Or use the download ID or full URL instead of the name
+```
+
+**Installation failed:**
+```bash
+# Check container logs
+docker compose logs facturascripts
+
+# Verify the plugin ZIP is valid
+# Ensure database is accessible
+# Check FS_DISABLE_ADD_PLUGINS is not set to true
+```
+
+**Reinstall plugins:**
+```bash
+# Remove marker file
+docker compose exec facturascripts rm /var/www/html/Plugins/.plugins_installed
+
+# Restart container
+docker compose restart facturascripts
+```
+
+### 4. Manual Plugin Installation
+
+FacturaScripts plugins can also be installed manually through the web interface:
 
 1. Log in to your FacturaScripts installation
 2. Go to **Admin Panel > Plugins**
@@ -270,7 +371,7 @@ docker cp my-plugin.zip facturascripts:/var/www/html/Plugins/
 docker compose exec facturascripts unzip /var/www/html/Plugins/my-plugin.zip -d /var/www/html/Plugins/
 ```
 
-### 4. Persistent Data
+### 5. Persistent Data
 
 The container uses volumes to persist important data:
 

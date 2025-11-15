@@ -56,6 +56,13 @@ services:
       FS_DISABLE_RM_PLUGINS: false
       FS_DISABLE_ADD_PLUGINS: false
       FS_DISABLE_RM_USERS: false
+      # Automatic Plugin Installation (optional)
+      # Supports: plugin names, download IDs, or URLs
+      # Examples:
+      #   FS_PLUGINS: "verifactu multiempresa"
+      #   FS_PLUGINS: "448 464"
+      #   FS_PLUGINS: "https://facturascripts.com/DownloadBuild/448/stable"
+      # FS_PLUGINS: "verifactu webportal"
       # Optional pre/post configure commands
       PRE_CONFIGURE_COMMANDS: |
         echo 'This is a pre-configure command'

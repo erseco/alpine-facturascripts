@@ -117,6 +117,172 @@ EOF
     fi
 }
 
+install_plugins() {
+    local marker_file="/var/www/html/Plugins/.plugins_installed"
+
+    # Skip if plugins already installed
+    if [ -f "$marker_file" ]; then
+        echo "Plugins already installed (marker file exists). Skipping."
+        return 0
+    fi
+
+    # Skip if no plugins defined
+    if [ -z "${FS_PLUGINS:-}" ]; then
+        echo "No plugins to install (FS_PLUGINS not set)."
+        return 0
+    fi
+
+    # Skip if config.php doesn't exist (FacturaScripts not configured yet)
+    if [ ! -f "/var/www/html/config.php" ]; then
+        echo "FacturaScripts not configured yet. Skipping plugin installation."
+        return 0
+    fi
+
+    echo "=== Installing FacturaScripts Plugins ==="
+
+    # Common plugin name to ID mapping (for convenience)
+    # Format: pluginname:downloadid
+    local plugin_map="
+        verifactu:448
+        multiempresa:464
+        webportal:460
+        openpaypf:400
+        notificaciones:356
+        pagosonline:391
+    "
+
+    # Process each plugin
+    local plugin_list=$(echo "$FS_PLUGINS" | tr '\n' ' ' | tr ',' ' ')
+    local plugin_count=0
+    local failed=0
+
+    for plugin in $plugin_list; do
+        # Skip empty entries
+        [ -z "$plugin" ] && continue
+
+        plugin_count=$((plugin_count + 1))
+        echo ""
+        echo "[$plugin_count] Processing plugin: $plugin"
+
+        local download_url=""
+        local plugin_file=""
+
+        # Detect plugin type and get download URL
+        if echo "$plugin" | grep -q '^https\?://'; then
+            # Full URL
+            download_url="$plugin"
+            plugin_file="/tmp/plugin-$plugin_count.zip"
+            echo "  Type: URL"
+        elif echo "$plugin" | grep -q '^[0-9]\+$'; then
+            # Numeric ID
+            download_url="https://facturascripts.com/DownloadBuild/${plugin}/stable"
+            plugin_file="/tmp/plugin-${plugin}.zip"
+            echo "  Type: Download ID"
+        else
+            # Plugin name - try to find in mapping
+            local mapped_id=$(echo "$plugin_map" | grep -i "^[[:space:]]*${plugin}:" | cut -d: -f2 | tr -d ' ')
+
+            if [ -n "$mapped_id" ]; then
+                download_url="https://facturascripts.com/DownloadBuild/${mapped_id}/stable"
+                plugin_file="/tmp/plugin-${plugin}.zip"
+                echo "  Type: Plugin name (mapped to ID: $mapped_id)"
+            else
+                echo "  ERROR: Unknown plugin name: $plugin"
+                echo "  Available named plugins: verifactu, multiempresa, webportal, openpaypf, notificaciones, pagosonline"
+                echo "  Tip: Use download ID or full URL instead"
+                failed=1
+                break
+            fi
+        fi
+
+        echo "  Download URL: $download_url"
+        echo "  Downloading..."
+
+        # Download plugin
+        if ! wget -q -O "$plugin_file" "$download_url"; then
+            echo "  ERROR: Failed to download plugin from: $download_url"
+            failed=1
+            break
+        fi
+
+        # Verify it's a valid ZIP
+        if ! unzip -t "$plugin_file" >/dev/null 2>&1; then
+            echo "  ERROR: Downloaded file is not a valid ZIP"
+            rm -f "$plugin_file"
+            failed=1
+            break
+        fi
+
+        echo "  Installing plugin..."
+
+        # Install plugin using PHP script
+        if ! php84 /usr/local/bin/install-facturascripts-plugin.php "$plugin_file"; then
+            echo "  ERROR: Failed to install plugin"
+            rm -f "$plugin_file"
+            failed=1
+            break
+        fi
+
+        # Clean up
+        rm -f "$plugin_file"
+        echo "  ✓ Plugin installed successfully"
+    done
+
+    if [ $failed -eq 1 ]; then
+        echo ""
+        echo "ERROR: Plugin installation failed. Container startup aborted."
+        echo "Please check the errors above and fix your FS_PLUGINS configuration."
+        exit 1
+    fi
+
+    if [ $plugin_count -eq 0 ]; then
+        echo "No valid plugins found in FS_PLUGINS."
+    else
+        # Create marker file
+        touch "$marker_file"
+        chown nobody:nobody "$marker_file"
+        echo ""
+        echo "✓ All plugins installed successfully ($plugin_count plugins)"
+    fi
+
+    echo "=== Plugin Installation Completed ==="
+}
+
+rebuild_facturascripts() {
+    local marker_file="/var/www/html/Dinamic/.rebuild_done"
+
+    # Skip if already rebuilt
+    if [ -f "$marker_file" ]; then
+        echo "FacturaScripts already rebuilt (marker file exists). Skipping."
+        return 0
+    fi
+
+    # Skip if config.php doesn't exist (FacturaScripts not configured yet)
+    if [ ! -f "/var/www/html/config.php" ]; then
+        echo "FacturaScripts not configured yet. Skipping rebuild."
+        return 0
+    fi
+
+    echo "=== Rebuilding FacturaScripts ==="
+    echo "This process generates Dinamic classes and may take a few seconds..."
+
+    # Execute rebuild script
+    if ! php84 /usr/local/bin/rebuild-facturascripts.php; then
+        echo "ERROR: FacturaScripts rebuild failed."
+        echo "The application may not work correctly until you manually rebuild it."
+        echo "You can rebuild by accessing: http://your-site/deploy?action=rebuild"
+        # Don't exit - let the container start so user can access the rebuild page
+        return 1
+    fi
+
+    # Create marker file to prevent rebuilding on every restart
+    touch "$marker_file"
+    chown nobody:nobody "$marker_file"
+
+    echo "✓ FacturaScripts rebuilt successfully"
+    echo "=== Rebuild Completed ==="
+}
+
 # --- Main Execution ---
 
 echo "=== FacturaScripts Entrypoint start ==="
@@ -139,15 +305,11 @@ configure_htaccess
 # Configure FacturaScripts
 configure_facturascripts
 
-# Trigger initial rebuild if config.php was just created and Dinamic folder is empty
-if [ -f "/var/www/html/config.php" ] && [ -n "${FS_INITIAL_USER:-}" ]; then
-    if [ ! -f "/var/www/html/Dinamic/.rebuild_done" ]; then
-        echo "Triggering initial FacturaScripts rebuild..."
-        # We'll create a marker file after first successful access
-        # For now, just log that rebuild will happen on first web access
-        touch /var/www/html/Dinamic/.rebuild_needed
-    fi
-fi
+# Install plugins if configured
+install_plugins
+
+# Rebuild FacturaScripts after initial configuration
+rebuild_facturascripts
 
 # Execute post-configure commands if the variable is set
 if [ -n "${POST_CONFIGURE_COMMANDS:-}" ]; then
