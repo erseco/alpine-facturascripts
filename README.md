@@ -14,7 +14,7 @@ Repository: https://github.com/erseco/alpine-facturascripts
 ## Key Features
 
 - **Built on** the lightweight image [erseco/alpine-php-webserver](https://github.com/erseco/alpine-php-webserver)
-- **Compact** Docker image size (~145MB)
+- **Compact** Docker image size (~30MB)
 - **Uses PHP 8.4 FPM** for better performance, lower CPU usage & memory footprint
 - **Unattended Installation** - skip the web installer with environment variables
 - **Automatic Plugin Installation** - install plugins on first startup via `FS_PLUGINS`
