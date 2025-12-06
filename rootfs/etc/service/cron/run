@@ -15,6 +15,22 @@ fi
 # CRON_INTERVAL can be set to any valid cron expression
 CRON_INTERVAL="${CRON_INTERVAL:-0 * * * *}"
 
+# Basic validation: cron expression should have 5 fields (minute hour day month weekday)
+# and only contain allowed characters: digits, *, /, comma, space, and hyphen
+if ! echo "$CRON_INTERVAL" | grep -qE '^[0-9\*\/\, -]+$'; then
+  echo "ERROR: Invalid CRON_INTERVAL format. Only cron expression characters are allowed (0-9, *, -, /, comma, space)"
+  echo "Using default: 0 * * * *"
+  CRON_INTERVAL="0 * * * *"
+fi
+
+# Count fields in cron expression (should be 5)
+FIELD_COUNT=$(echo "$CRON_INTERVAL" | awk '{print NF}')
+if [ "$FIELD_COUNT" -ne 5 ]; then
+  echo "ERROR: Invalid CRON_INTERVAL format. Expected 5 fields (minute hour day month weekday), got $FIELD_COUNT"
+  echo "Using default: 0 * * * *"
+  CRON_INTERVAL="0 * * * *"
+fi
+
 echo "Configuring FacturaScripts cron with interval: ${CRON_INTERVAL}"
 echo "${CRON_INTERVAL} /usr/bin/php84 /var/www/html/index.php -cron > /dev/null" > /etc/crontabs/nobody
 
