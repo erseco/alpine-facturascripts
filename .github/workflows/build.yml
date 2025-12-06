@@ -13,6 +13,11 @@ on:
         description: 'FacturaScripts version'
         required: true
 
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
 jobs:
   buildx:
     runs-on: ubuntu-latest
