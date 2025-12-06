@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/erseco/alpine-facturas
 # Install system dependencies as root
 USER root
 RUN apk add --no-cache \
-    unzip wget jq netcat-openbsd \
+    unzip jq netcat-openbsd \
     php84-bcmath \
     php84-ctype \
     php84-dom \
@@ -56,7 +56,7 @@ RUN set -x && \
     \
     # 1. Download and extract FacturaScripts
     echo "Downloading FacturaScripts version: $FS_VERSION" && \
-    wget -q -O /tmp/facturascripts.zip "https://facturascripts.com/DownloadBuild/1/${FS_VERSION}" && \
+    curl -fsSL -o /tmp/facturascripts.zip "https://facturascripts.com/DownloadBuild/1/${FS_VERSION}" && \
     unzip -q /tmp/facturascripts.zip -d /tmp/ && \
     rm -f /tmp/facturascripts.zip && \
     \
