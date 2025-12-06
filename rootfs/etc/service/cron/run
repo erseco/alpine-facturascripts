@@ -10,4 +10,23 @@ if [ "${RUN_CRON_TASKS:-true}" = "false" ]; then
   exit 0
 fi
 
+# Generate crontab with configurable interval
+# Default: every hour (0 * * * *)
+# CRON_INTERVAL can be set to any valid cron expression
+CRON_INTERVAL="${CRON_INTERVAL:-0 * * * *}"
+
+# Strict validation: cron expression must have exactly 5 fields separated by whitespace
+# Each field can only contain: digits, *, /, comma, and hyphen (no spaces within fields)
+# Pattern: (field + whitespace) repeated 4 times, followed by the 5th field
+if ! echo "$CRON_INTERVAL" | grep -qE '^([0-9\*\/\,-]+\s+){4}[0-9\*\/\,-]+$'; then
+  echo "ERROR: Invalid CRON_INTERVAL format. Must be a valid 5-field cron expression."
+  echo "Example: '* * * * *' or '0 * * * *'"
+  echo "Using default: 0 * * * *"
+  CRON_INTERVAL="0 * * * *"
+fi
+
+echo "Configuring FacturaScripts cron with interval: ${CRON_INTERVAL}"
+# Write crontab entry with proper quoting to prevent injection
+printf '%s /usr/bin/php84 /var/www/html/index.php -cron > /dev/null\n' "$CRON_INTERVAL" > /etc/crontabs/nobody
+
 exec /usr/sbin/crond -f

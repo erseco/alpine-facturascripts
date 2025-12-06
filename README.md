@@ -215,11 +215,12 @@ You can configure the container using the following environment variables in you
 
 ### Other Configuration Variables
 
-| Variable Name               | Description                                       | Default |
-|-----------------------------|---------------------------------------------------|---------|
-| `PRE_CONFIGURE_COMMANDS`    | Commands to run before starting the configuration |         |
-| `POST_CONFIGURE_COMMANDS`   | Commands to run after finishing the configuration |         |
-| `RUN_CRON_TASKS`            | Enable/disable automatic cron tasks               | `true`  |
+| Variable Name               | Description                                       | Default       |
+|-----------------------------|---------------------------------------------------|---------------|
+| `PRE_CONFIGURE_COMMANDS`    | Commands to run before starting the configuration |               |
+| `POST_CONFIGURE_COMMANDS`   | Commands to run after finishing the configuration |               |
+| `RUN_CRON_TASKS`            | Enable/disable automatic cron tasks               | `true`        |
+| `CRON_INTERVAL`             | Cron schedule expression for FacturaScripts tasks | `0 * * * *`   |
 
 ## Advanced Features
 
@@ -360,12 +361,42 @@ FacturaScripts requires a cron process for certain tasks in some plugins. While 
 
 #### How It Works
 
-The container automatically runs a cron daemon that executes FacturaScripts scheduled tasks **every hour**. This is configured automatically and requires no manual intervention.
+The container automatically runs a cron daemon that executes FacturaScripts scheduled tasks. By default, it runs **every hour**, but you can customize the interval using the `CRON_INTERVAL` environment variable.
 
-The cron executes the following command hourly:
+The cron executes the following command:
 ```bash
 php index.php -cron
 ```
+
+#### Configuring Cron Interval
+
+You can customize the cron schedule using the `CRON_INTERVAL` environment variable with any valid cron expression:
+
+```yaml
+environment:
+  # Run every 60 seconds (every minute)
+  CRON_INTERVAL: "* * * * *"
+```
+
+```yaml
+environment:
+  # Run every 5 minutes
+  CRON_INTERVAL: "*/5 * * * *"
+```
+
+```yaml
+environment:
+  # Run every hour at minute 0 (default)
+  CRON_INTERVAL: "0 * * * *"
+```
+
+**Common Cron Expressions:**
+- `* * * * *` - Every minute (recommended for Verifactu)
+- `*/5 * * * *` - Every 5 minutes
+- `*/15 * * * *` - Every 15 minutes
+- `0 * * * *` - Every hour (default)
+- `0 */2 * * *` - Every 2 hours
+- `0 0 * * *` - Daily at midnight
 
 #### Disabling Cron Tasks
 

@@ -71,6 +71,9 @@ services:
       # Cron configuration (optional)
       # Set to false to disable automatic cron tasks
       # RUN_CRON_TASKS: true
+      # Customize cron interval (default: every hour)
+      # For Verifactu, every minute is recommended: "* * * * *"
+      # CRON_INTERVAL: "* * * * *"
 
     volumes:
       - facturascripts_volume:/var/www/html/volume:Z
