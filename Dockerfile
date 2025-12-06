@@ -73,9 +73,8 @@ RUN set -x && \
     # 4. Create symbolic links to the volume directories
     rm -rf /var/www/html/MyFiles \
            /var/www/html/Plugins && \
-    cd /var/www/html && \
-    ln -s volume/MyFiles . && \
-    ln -s volume/Plugins . && \
+    ln -s volume/MyFiles /var/www/html/MyFiles && \
+    ln -s volume/Plugins /var/www/html/Plugins && \
     \
     # 5. Set final permissions
     chown -R nobody:nobody /var/www/html
