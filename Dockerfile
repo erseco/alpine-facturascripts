@@ -1,6 +1,6 @@
 # Base image using alpine-php-webserver
 ARG ARCH=
-FROM ${ARCH}erseco/alpine-php-webserver:3.22.2
+FROM ${ARCH}erseco/alpine-php-webserver:3.23.0
 
 LABEL maintainer="Ernesto Serrano <info@ernesto.es>"
 
@@ -40,7 +40,7 @@ RUN apk add --no-cache \
     rm -rf /var/cache/apk/*
 
 # FacturaScripts version configuration
-ARG FS_VERSION=2025.5
+ARG FS_VERSION=2025.6
 
 # Default environment variables
 ENV APPLICATION_ENV=production \
