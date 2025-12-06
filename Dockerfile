@@ -10,6 +10,7 @@ LABEL org.opencontainers.image.source="https://github.com/erseco/alpine-facturas
 
 # Install system dependencies as root
 USER root
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN apk add --no-cache \
     unzip jq netcat-openbsd \
     php84-bcmath \
