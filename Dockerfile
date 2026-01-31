@@ -40,8 +40,8 @@ RUN apk add --no-cache \
 # Clean APK cache
     rm -rf /var/cache/apk/*
 
-# FacturaScripts version configuration
-ARG FS_VERSION=2025.6
+# FacturaScripts version (tag like v2025.81, or "latest" for most recent release)
+ARG FS_VERSION=latest
 
 # Default environment variables
 ENV APPLICATION_ENV=production \
@@ -52,31 +52,26 @@ ENV APPLICATION_ENV=production \
     HOME=/tmp \
     FS_VERSION=${FS_VERSION}
 
-# Download, extract, and configure FacturaScripts in a single layer
+# Download FacturaScripts CORE.zip from GitHub Releases
 RUN set -x && \
-    \
-    # 1. Download and extract FacturaScripts
-    echo "Downloading FacturaScripts version: $FS_VERSION" && \
-    curl -fsSL -o /tmp/facturascripts.zip "https://facturascripts.com/DownloadBuild/1/${FS_VERSION}" && \
+    if [ "$FS_VERSION" = "latest" ]; then \
+      FS_URL="https://github.com/NeoRazorX/facturascripts/releases/latest/download/CORE.zip"; \
+    else \
+      FS_URL="https://github.com/NeoRazorX/facturascripts/releases/download/${FS_VERSION}/CORE.zip"; \
+    fi && \
+    echo "Downloading FacturaScripts from: $FS_URL" && \
+    curl -fsSL -o /tmp/facturascripts.zip "$FS_URL" && \
     unzip -q /tmp/facturascripts.zip -d /tmp/ && \
     rm -f /tmp/facturascripts.zip && \
-    \
-    # 2. Move FacturaScripts content to web root
     rm -rf /var/www/html/* && \
     mv /tmp/facturascripts/* /tmp/facturascripts/.[!.]* /var/www/html/ 2>/dev/null || true && \
     rm -rf /tmp/facturascripts && \
     \
-    # 3. Create the volume structure for persistent data
-    mkdir -p /var/www/html/volume/MyFiles \
-             /var/www/html/volume/Plugins && \
-    \
-    # 4. Create symbolic links to the volume directories
-    rm -rf /var/www/html/MyFiles \
-           /var/www/html/Plugins && \
+    # Create the volume structure for persistent data
+    mkdir -p /var/www/html/volume/MyFiles /var/www/html/volume/Plugins && \
+    rm -rf /var/www/html/MyFiles /var/www/html/Plugins && \
     ln -s volume/MyFiles /var/www/html/MyFiles && \
     ln -s volume/Plugins /var/www/html/Plugins && \
-    \
-    # 5. Set final permissions
     chown -R nobody:nobody /var/www/html
 
 # Copy custom entrypoint scripts

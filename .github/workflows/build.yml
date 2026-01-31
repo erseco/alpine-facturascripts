@@ -90,12 +90,12 @@ jobs:
         id: fs_version
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
+            # Use the specific tag (e.g., v2025.81)
             VERSION=${GITHUB_REF#refs/tags/}
-            # Remove 'v' prefix if present
-            VERSION=${VERSION#v}
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
           else
-            echo "version=2025.5" >> $GITHUB_OUTPUT
+            # For main/PR, use the latest release
+            echo "version=latest" >> $GITHUB_OUTPUT
           fi
 
       # Step 8: Test build (for PRs)
