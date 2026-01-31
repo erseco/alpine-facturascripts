@@ -34,7 +34,7 @@ jobs:
         id: process
         run: |
           EXISTING=" ${{ env.existing_tags }} "
-          NEW_TAGS=""
+          NEW_TAGS=()
 
           for tag in ${{ env.fs_tags }}; do
             [[ ! "$tag" =~ ^v ]] && continue
@@ -44,26 +44,33 @@ jobs:
             git tag "$tag"
             git push origin "$tag"
 
-            NEW_TAGS="$NEW_TAGS $tag"
+            NEW_TAGS+=("$tag")
           done
 
-          echo "new_tags=$(echo $NEW_TAGS | xargs)" >> $GITHUB_OUTPUT
-          echo "Created $(echo $NEW_TAGS | wc -w | xargs) new tags: $NEW_TAGS"
+          # Output as JSON array for matrix strategy
+          if [ ${#NEW_TAGS[@]} -eq 0 ]; then
+            echo "new_tags=[]" >> $GITHUB_OUTPUT
+          else
+            JSON_ARRAY=$(printf '%s\n' "${NEW_TAGS[@]}" | jq -R . | jq -sc .)
+            echo "new_tags=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          fi
+          echo "Created ${#NEW_TAGS[@]} new tags: ${NEW_TAGS[*]}"
 
       - name: Summary
         run: |
           echo "# FacturaScripts Tags Sync" >> $GITHUB_STEP_SUMMARY
           echo "- Releases with CORE.zip: $(echo "${{ env.fs_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
           echo "- Existing tags: $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          echo "- New tags created: ${{ steps.process.outputs.new_tags }}" >> $GITHUB_STEP_SUMMARY
+          NEW_TAGS='${{ steps.process.outputs.new_tags }}'
+          echo "- New tags created: $(echo "$NEW_TAGS" | jq -r 'join(", ")')" >> $GITHUB_STEP_SUMMARY
 
   # Trigger build for each new tag
   build:
     needs: sync-tags
-    if: needs.sync-tags.outputs.new_tags != ''
+    if: needs.sync-tags.outputs.new_tags != '[]'
     strategy:
       matrix:
-        tag: ${{ fromJson(format('["{0}"]', join(split(needs.sync-tags.outputs.new_tags, ' '), '","'))) }}
+        tag: ${{ fromJson(needs.sync-tags.outputs.new_tags) }}
     uses: ./.github/workflows/build.yml
     with:
       fs_version: ${{ matrix.tag }}
