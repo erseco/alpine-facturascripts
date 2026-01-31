@@ -68,6 +68,8 @@ jobs:
   build:
     needs: sync-tags
     if: needs.sync-tags.outputs.new_tags != '[]'
+    permissions:
+      contents: read
     strategy:
       matrix:
         tag: ${{ fromJson(needs.sync-tags.outputs.new_tags) }}
