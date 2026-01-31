@@ -54,6 +54,10 @@ ENV APPLICATION_ENV=production \
 
 # Download FacturaScripts CORE.zip from GitHub Releases
 RUN set -x && \
+    # Normalize version: add 'v' prefix if missing (except for 'latest')
+    if [ "$FS_VERSION" != "latest" ] && [ "${FS_VERSION#v}" = "$FS_VERSION" ]; then \
+      FS_VERSION="v${FS_VERSION}"; \
+    fi && \
     if [ "$FS_VERSION" = "latest" ]; then \
       FS_URL="https://github.com/NeoRazorX/facturascripts/releases/latest/download/CORE.zip"; \
     else \
