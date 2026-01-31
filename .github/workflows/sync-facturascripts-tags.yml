@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      new_tags: ${{ steps.process.outputs.new_tags }}
 
     steps:
       - uses: actions/checkout@v6
@@ -29,11 +31,10 @@ jobs:
           echo "existing_tags=$(git tag -l | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Process missing tags
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+        id: process
         run: |
           EXISTING=" ${{ env.existing_tags }} "
-          PROCESSED=0
+          NEW_TAGS=""
 
           for tag in ${{ env.fs_tags }}; do
             [[ ! "$tag" =~ ^v ]] && continue
@@ -42,14 +43,28 @@ jobs:
             echo "Creating tag: $tag"
             git tag "$tag"
             git push origin "$tag"
-            # The tag push automatically triggers the build.yml workflow
 
-            PROCESSED=$((PROCESSED+1))
+            NEW_TAGS="$NEW_TAGS $tag"
           done
-          echo "Created $PROCESSED new tags."
+
+          echo "new_tags=$(echo $NEW_TAGS | xargs)" >> $GITHUB_OUTPUT
+          echo "Created $(echo $NEW_TAGS | wc -w | xargs) new tags: $NEW_TAGS"
 
       - name: Summary
         run: |
           echo "# FacturaScripts Tags Sync" >> $GITHUB_STEP_SUMMARY
           echo "- Releases with CORE.zip: $(echo "${{ env.fs_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
           echo "- Existing tags: $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
+          echo "- New tags created: ${{ steps.process.outputs.new_tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # Trigger build for each new tag
+  build:
+    needs: sync-tags
+    if: needs.sync-tags.outputs.new_tags != ''
+    strategy:
+      matrix:
+        tag: ${{ fromJson(format('["{0}"]', join(split(needs.sync-tags.outputs.new_tags, ' '), '","'))) }}
+    uses: ./.github/workflows/build.yml
+    with:
+      fs_version: ${{ matrix.tag }}
+    secrets: inherit

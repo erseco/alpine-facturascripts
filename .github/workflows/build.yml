@@ -12,6 +12,12 @@ on:
       fs_version:
         description: 'FacturaScripts version'
         required: true
+  workflow_call:
+    inputs:
+      fs_version:
+        description: 'FacturaScripts version tag'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -89,7 +95,10 @@ jobs:
       - name: Determine FacturaScripts version
         id: fs_version
         run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
+          if [[ -n "${{ inputs.fs_version }}" ]]; then
+            # Version passed from workflow_call or workflow_dispatch
+            echo "version=${{ inputs.fs_version }}" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF == refs/tags/* ]]; then
             # Use the specific tag (e.g., v2025.81)
             VERSION=${GITHUB_REF#refs/tags/}
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
