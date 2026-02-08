@@ -1,5 +1,7 @@
 # Copilot Instructions for alpine-facturascripts
 
+> These instructions help GitHub Copilot understand this repository's structure, conventions, and best practices. For more information about Copilot instructions, see [GitHub's documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot).
+
 ## Project Overview
 
 This repository contains a lightweight Docker image for **FacturaScripts** (open-source accounting and billing software) built on **Alpine Linux**. The image is optimized for minimal size (~30MB) and resource efficiency while maintaining full functionality.
