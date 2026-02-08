@@ -22,7 +22,7 @@ services:
         #
         # Example:
         # FS_VERSION: 2025.4
-        FS_VERSION: 2025.5
+        FS_VERSION: latest
     restart: unless-stopped
     ports:
       - "8080:8080"

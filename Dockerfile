@@ -76,7 +76,11 @@ RUN set -x && \
     rm -rf /var/www/html/MyFiles /var/www/html/Plugins && \
     ln -s volume/MyFiles /var/www/html/MyFiles && \
     ln -s volume/Plugins /var/www/html/Plugins && \
-    chown -R nobody:nobody /var/www/html
+    chown -R nobody:nobody /var/www/html && \
+    \
+    # Verify that the download and extraction was successful
+    test -f /var/www/html/vendor/autoload.php || \
+      (echo "ERROR: vendor/autoload.php not found. The FS_VERSION '${FS_VERSION}' may not exist on GitHub Releases." && exit 1)
 
 # Copy custom entrypoint scripts
 COPY --chown=nobody rootfs/ /
