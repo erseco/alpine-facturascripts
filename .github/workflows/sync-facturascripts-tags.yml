@@ -70,6 +70,8 @@ jobs:
     if: needs.sync-tags.outputs.new_tags != '[]'
     permissions:
       contents: read
+      packages: write
+      security-events: write
     strategy:
       matrix:
         tag: ${{ fromJson(needs.sync-tags.outputs.new_tags) }}
