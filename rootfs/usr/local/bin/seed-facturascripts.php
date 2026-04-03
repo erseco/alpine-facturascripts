@@ -158,4 +158,42 @@ foreach ($seed as $key => $records) {
     }
 }
 
+// Link products to suppliers via ProductoProveedor
+$ppClass = '\\FacturaScripts\\Dinamic\\Model\\ProductoProveedor';
+if (
+    class_exists($ppClass)
+    && !empty($seed['suppliers'] ?? $seed['Proveedor'] ?? [])
+    && !empty($seed['products'] ?? $seed['Producto'] ?? [])
+) {
+    echo "[seed] Linking products to suppliers...\n";
+    $ppLinked = 0;
+    $proveedorModel = new \FacturaScripts\Dinamic\Model\Proveedor();
+    $suppliers = $proveedorModel->all([], [], 0, 0);
+
+    $productoModel = new \FacturaScripts\Dinamic\Model\Producto();
+    $products = $productoModel->all([], [], 0, 0);
+
+    foreach ($products as $product) {
+        foreach ($suppliers as $supplier) {
+            $pp = new $ppClass();
+            $where = [
+                Where::eq('referencia', $product->referencia),
+                Where::eq('codproveedor', $supplier->codproveedor),
+            ];
+            if ($pp->loadWhere($where)) {
+                continue;
+            }
+            $pp->codproveedor = $supplier->codproveedor;
+            $pp->referencia = $product->referencia;
+            $pp->refproveedor = $product->referencia;
+            $pp->precio = $product->precio;
+            $pp->neto = $product->precio;
+            if ($pp->save()) {
+                $ppLinked++;
+            }
+        }
+    }
+    echo "[seed] Linked {$ppLinked} product-supplier relations.\n";
+}
+
 echo "[seed] Done: {$totalCreated} created, {$totalSkipped} skipped.\n";
