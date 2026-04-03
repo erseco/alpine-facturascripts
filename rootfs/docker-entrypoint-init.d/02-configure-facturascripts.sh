@@ -311,6 +311,20 @@ install_plugins
 # Rebuild FacturaScripts after initial configuration
 rebuild_facturascripts
 
+# Complete Wizard setup if FS_INITIAL_USER is set
+if [ -n "${FS_INITIAL_USER:-}" ] && [ -f "/var/www/html/config.php" ]; then
+    echo "=== Running FacturaScripts Setup ==="
+    php84 /usr/local/bin/setup-facturascripts.php
+    echo "=== Setup Completed ==="
+fi
+
+# Load seed data if FS_SEED_FILE is set
+if [ -n "${FS_SEED_FILE:-}" ] && [ -f "${FS_SEED_FILE}" ]; then
+    echo "=== Loading Seed Data ==="
+    php84 /usr/local/bin/seed-facturascripts.php "${FS_SEED_FILE}"
+    echo "=== Seed Data Completed ==="
+fi
+
 # Execute post-configure commands if the variable is set
 if [ -n "${POST_CONFIGURE_COMMANDS:-}" ]; then
     echo "Executing post-configure commands..."

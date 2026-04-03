@@ -17,6 +17,8 @@ Repository: https://github.com/erseco/alpine-facturascripts
 - **Compact** Docker image size (~30MB)
 - **Uses PHP 8.4 FPM** for better performance, lower CPU usage & memory footprint
 - **Unattended Installation** - skip the web installer with environment variables
+- **Wizard Auto-Completion** - fully configures company, models, and accounting plan on first boot
+- **Seed Data Loading** - pre-populate suppliers, products, etc. from a JSON file via `FS_SEED_FILE`
 - **Automatic Plugin Installation** - install plugins on first startup via `FS_PLUGINS`
 - **Automatic Cron Tasks** - hourly scheduled tasks via dcron (can be disabled)
 - **Configurable** via environment variables (see Configuration section)
@@ -199,6 +201,12 @@ You can configure the container using the following environment variables in you
 | `FS_DISABLE_RM_PLUGINS` | Disable plugin removal                      | `false`                    |
 | `FS_DISABLE_ADD_PLUGINS`| Disable plugin installation                 | `false`                    |
 | `FS_DISABLE_RM_USERS`   | Disable user removal                        | `false`                    |
+| `FS_CODPAIS`            | Country code (ESP, DEU, FRA, etc.)          | `ESP`                      |
+| `FS_COMPANY_NAME`       | Company name for auto-setup                 | `Mi Empresa`               |
+| `FS_COMPANY_CIF`        | Company tax ID (CIF/NIF)                    | `""`                       |
+| `FS_COMPANY_REGIMENIVA` | VAT regime (General, Simplified, etc.)      | `General`                  |
+| `FS_LOAD_ACCOUNTING_PLAN` | Load default accounting plan (true/false) | `true`                     |
+| `FS_SEED_FILE`          | Path to JSON seed data file                 | `""`                       |
 | `FS_PLUGINS`            | Space-separated list of plugins to install  | `""`                       |
 
 **Note about `FS_PLUGINS`:** Supports plugin names, download IDs, or full URLs. Plugins are installed only on first startup. See "Automatic Plugin Installation" section for details.
@@ -355,7 +363,125 @@ docker compose exec facturascripts rm /var/www/html/Plugins/.plugins_installed
 docker compose restart facturascripts
 ```
 
-### 4. Scheduled Tasks (Cron)
+### 4. Company Setup (Wizard Auto-Completion)
+
+When `FS_INITIAL_USER` is set, the container now automatically completes the FacturaScripts installation wizard, so you never see the Wizard page in the browser. This sets up the company, country defaults, all database tables, and the default accounting plan.
+
+#### Company Configuration Variables
+
+| Variable Name              | Description                        | Default       |
+|----------------------------|------------------------------------|---------------|
+| `FS_CODPAIS`               | Country code (ESP, DEU, FRA, etc.) | `ESP`         |
+| `FS_COMPANY_NAME`          | Company name                       | `Mi Empresa`  |
+| `FS_COMPANY_CIF`           | Company tax ID (CIF/NIF)           | `""`          |
+| `FS_COMPANY_REGIMENIVA`    | VAT regime (General, Simplified)   | `General`     |
+| `FS_LOAD_ACCOUNTING_PLAN`  | Load default accounting plan       | `true`        |
+
+#### Example
+
+```yaml
+environment:
+  FS_INITIAL_USER: admin
+  FS_INITIAL_PASS: admin
+  FS_CODPAIS: ESP
+  FS_COMPANY_NAME: "Empresa Demo S.L."
+  FS_COMPANY_CIF: "B12345678"
+  FS_COMPANY_REGIMENIVA: General
+```
+
+With this configuration, on first startup the container will:
+1. Create the admin user and set the homepage to Dashboard
+2. Configure the company with the given name, CIF, and country
+3. Initialize all FacturaScripts models (creates all database tables)
+4. Load the default accounting plan for the selected country
+5. Set country-specific defaults (tax rates, document series, etc.)
+
+### 5. Seed Data Loading
+
+You can pre-populate your FacturaScripts instance with suppliers, products, customers, or any model data using a JSON seed file. This is useful for development, testing, demos, and playground environments.
+
+#### How to Use
+
+Set the `FS_SEED_FILE` environment variable to point to a JSON file inside the container:
+
+```yaml
+environment:
+  FS_SEED_FILE: /var/www/html/Plugins/MyPlugin/seed.json
+```
+
+#### JSON Format
+
+The seed file must have a `seed` key containing model data. You can use either **model names** (exact FacturaScripts class names) or **convenience aliases**:
+
+| Alias        | Model Name |
+|--------------|------------|
+| `suppliers`  | `Proveedor` |
+| `products`   | `Producto`  |
+| `customers`  | `Cliente`   |
+
+```json
+{
+  "seed": {
+    "suppliers": [
+      {
+        "nombre": "Telefónica S.A.",
+        "cifnif": "A28015865",
+        "tipoidfiscal": "CIF",
+        "regimeniva": "General",
+        "_unique": "cifnif"
+      }
+    ],
+    "products": [
+      {
+        "referencia": "SERV-HOSTING",
+        "descripcion": "Web hosting service",
+        "precio": 9.99,
+        "_unique": "referencia"
+      }
+    ]
+  }
+}
+```
+
+#### Duplicate Detection
+
+Each record can include a `_unique` field that specifies which field to use for duplicate checking. If a record with the same value already exists, it is skipped. If `_unique` is not specified, the first non-empty string field is used.
+
+#### Using Model Names Directly
+
+You can also use FacturaScripts model class names directly as keys:
+
+```json
+{
+  "seed": {
+    "Proveedor": [
+      {"nombre": "Acme Corp", "cifnif": "X1234567X", "_unique": "cifnif"}
+    ],
+    "FormaPago": [
+      {"descripcion": "Wire Transfer", "codpago": "WIRE", "_unique": "codpago"}
+    ]
+  }
+}
+```
+
+Any valid FacturaScripts Dinamic model can be used as a key.
+
+#### Example docker-compose.yml
+
+```yaml
+services:
+  facturascripts:
+    image: erseco/alpine-facturascripts
+    environment:
+      FS_INITIAL_USER: admin
+      FS_INITIAL_PASS: admin
+      FS_COMPANY_NAME: "Demo Company"
+      FS_SEED_FILE: /data/seed.json
+    volumes:
+      - ./seed.json:/data/seed.json:ro
+```
+
+### 6. Scheduled Tasks (Cron)
 
 FacturaScripts requires a cron process for certain tasks in some plugins. While not strictly mandatory, **it is highly recommended** to run scheduled tasks.
 
@@ -433,7 +559,7 @@ View cron logs:
 docker compose logs facturascripts | grep cron
 ```
 
-### 5. Manual Plugin Installation
+### 7. Manual Plugin Installation
 
 FacturaScripts plugins can also be installed manually through the web interface:
 
