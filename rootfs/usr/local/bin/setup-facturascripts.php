@@ -123,9 +123,24 @@ if (is_dir($dinamicModelDir)) {
 // Step 6: Re-deploy to register routes for all models
 Plugins::deploy(true, true);
 
-// Step 7: Set admin homepage to Dashboard
-$db->exec("UPDATE users SET homepage = 'Dashboard' WHERE nick = 'admin'");
-echo "[setup] Admin homepage set to Dashboard.\n";
+// Step 7: Set admin homepage, warehouse, and serie
+$almacenes = $db->select('SELECT codalmacen FROM almacenes LIMIT 1');
+$codalmacen = $almacenes[0]['codalmacen'] ?? null;
+$series = $db->select('SELECT codserie FROM series LIMIT 1');
+$codserie = $series[0]['codserie'] ?? null;
+
+$updates = ["homepage = 'Dashboard'"];
+if ($codalmacen) {
+    $updates[] = "codalmacen = '{$codalmacen}'";
+}
+if ($codserie) {
+    $updates[] = "codserie = '{$codserie}'";
+}
+$db->exec('UPDATE users SET ' . implode(', ', $updates) . " WHERE nick = 'admin'");
+echo "[setup] Admin configured (homepage=Dashboard"
+    . ($codalmacen ? ", almacen={$codalmacen}" : '')
+    . ($codserie ? ", serie={$codserie}" : '')
+    . ").\n";
 
 // Step 8: Load default accounting plan
 $loadPlan = getenv('FS_LOAD_ACCOUNTING_PLAN');
