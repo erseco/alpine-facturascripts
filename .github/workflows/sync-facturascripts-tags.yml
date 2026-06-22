@@ -14,7 +14,7 @@ jobs:
       new_tags: ${{ steps.process.outputs.new_tags }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
