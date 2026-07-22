@@ -21,6 +21,7 @@ on:
           - version
           - stable
           - beta
+          - stable-beta
   workflow_call:
     inputs:
       fs_version:
@@ -28,7 +29,7 @@ on:
         required: true
         type: string
       fs_channel:
-        description: 'Release channel: version, stable or beta'
+        description: 'Release channel: version, stable, beta or stable-beta'
         required: false
         default: version
         type: string
@@ -69,7 +70,7 @@ jobs:
             echo "Invalid FacturaScripts version: $version" >&2
             exit 1
           }
-          [[ "$channel" =~ ^(version|stable|beta|main)$ ]] || {
+          [[ "$channel" =~ ^(version|stable|beta|stable-beta|main)$ ]] || {
             echo "Invalid release channel: $channel" >&2
             exit 1
           }
@@ -77,8 +78,8 @@ jobs:
           {
             echo "version=$version"
             echo "publish_version=$([[ "$version" =~ ^[0-9] ]] && echo true || echo false)"
-            echo "stable=$([[ "$channel" == stable ]] && echo true || echo false)"
-            echo "beta=$([[ "$channel" == beta ]] && echo true || echo false)"
+            echo "stable=$([[ "$channel" == stable || "$channel" == stable-beta ]] && echo true || echo false)"
+            echo "beta=$([[ "$channel" == beta || "$channel" == stable-beta ]] && echo true || echo false)"
             echo "main=$([[ "$channel" == main ]] && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
 

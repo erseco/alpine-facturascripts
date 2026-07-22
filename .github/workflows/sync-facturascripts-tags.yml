@@ -80,8 +80,13 @@ jobs:
             seen+="$version "
 
             channel=version
-            [[ "$version" == "$stable" ]] && channel=stable
-            [[ "$version" == "$beta" ]] && channel=beta
+            if [[ "$version" == "$stable" && "$version" == "$beta" ]]; then
+              channel='stable-beta'
+            elif [[ "$version" == "$stable" ]]; then
+              channel=stable
+            elif [[ "$version" == "$beta" ]]; then
+              channel=beta
+            fi
 
             version_digest=$(jq -r --arg version "$version" \
               '.results[] | select(.name == $version) | .digest' <<< "$docker_tags")
@@ -89,10 +94,14 @@ jobs:
             if [[ -z "$version_digest" ]]; then
               rebuild=true
             elif [[ "$channel" != version ]]; then
-              alias_digest=$(jq -r --arg channel "$channel" \
-                '.results[] | select(.name == (if $channel == "stable" then "latest" else "beta" end)) | .digest' \
-                <<< "$docker_tags")
-              [[ "$version_digest" == "$alias_digest" ]] || rebuild=true
+              aliases=()
+              [[ "$channel" == stable || "$channel" == stable-beta ]] && aliases+=(latest)
+              [[ "$channel" == beta || "$channel" == stable-beta ]] && aliases+=(beta)
+              for alias in "${aliases[@]}"; do
+                alias_digest=$(jq -r --arg alias "$alias" \
+                  '.results[] | select(.name == $alias) | .digest' <<< "$docker_tags")
+                [[ "$version_digest" == "$alias_digest" ]] || rebuild=true
+              done
             fi
 
             if [[ "$rebuild" == true ]]; then
