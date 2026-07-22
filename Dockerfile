@@ -40,8 +40,8 @@ RUN apk add --no-cache \
 # Clean APK cache
     rm -rf /var/cache/apk/*
 
-# FacturaScripts version (tag like v2025.81, or "latest" for most recent release)
-ARG FS_VERSION=latest
+# FacturaScripts version (for example 2026.41), or the "stable"/"beta" channel
+ARG FS_VERSION=stable
 
 # Default environment variables
 ENV APPLICATION_ENV=production \
@@ -52,17 +52,12 @@ ENV APPLICATION_ENV=production \
     HOME=/tmp \
     FS_VERSION=${FS_VERSION}
 
-# Download FacturaScripts CORE.zip from GitHub Releases
+# Download FacturaScripts from its official build service. Unlike GitHub Releases,
+# this service exposes the real stable/beta channels and keeps versioned builds.
 RUN set -x && \
-    # Normalize version: add 'v' prefix if missing (except for 'latest')
-    if [ "$FS_VERSION" != "latest" ] && [ "${FS_VERSION#v}" = "$FS_VERSION" ]; then \
-      FS_VERSION="v${FS_VERSION}"; \
-    fi && \
-    if [ "$FS_VERSION" = "latest" ]; then \
-      FS_URL="https://github.com/NeoRazorX/facturascripts/releases/latest/download/CORE.zip"; \
-    else \
-      FS_URL="https://github.com/NeoRazorX/facturascripts/releases/download/${FS_VERSION}/CORE.zip"; \
-    fi && \
+    FS_VERSION="${FS_VERSION#v}" && \
+    if [ "$FS_VERSION" = "latest" ]; then FS_VERSION="stable"; fi && \
+    FS_URL="https://facturascripts.com/DownloadBuild/1/${FS_VERSION}" && \
     echo "Downloading FacturaScripts from: $FS_URL" && \
     curl -fsSL -o /tmp/facturascripts.zip "$FS_URL" && \
     unzip -q /tmp/facturascripts.zip -d /tmp/ && \
@@ -80,7 +75,7 @@ RUN set -x && \
     \
     # Verify that the download and extraction was successful
     test -f /var/www/html/vendor/autoload.php || \
-      (echo "ERROR: vendor/autoload.php not found. The FS_VERSION '${FS_VERSION}' may not exist on GitHub Releases." && exit 1)
+      (echo "ERROR: vendor/autoload.php not found. FacturaScripts build '${FS_VERSION}' may not exist." && exit 1)
 
 # Copy custom entrypoint scripts
 COPY --chown=nobody rootfs/ /

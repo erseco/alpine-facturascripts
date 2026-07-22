@@ -234,7 +234,7 @@ You can configure the container using the following environment variables in you
 
 ### 1. Using Different FacturaScripts Versions
 
-Calling `docker compose build` uses the latest stable version of FacturaScripts (2025.5). If you need to use a specific FacturaScripts version, you can specify it using the `FS_VERSION` build argument.
+Calling `docker compose build` uses the latest stable version of FacturaScripts. If you need to use a specific FacturaScripts version or the beta channel, you can specify it using the `FS_VERSION` build argument.
 
 To use a specific version, edit the build section for the facturascripts service in your `docker-compose.yml` file:
 
@@ -244,7 +244,7 @@ facturascripts:
   build:
     context: .
     args:
-      FS_VERSION: 2025.4  # Replace with your desired version
+      FS_VERSION: 2026.41  # Also accepts "stable" or "beta"
 ```
 
 Available versions can be found at [https://facturascripts.com/descargas](https://facturascripts.com/descargas)

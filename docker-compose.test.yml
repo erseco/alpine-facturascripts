@@ -1,7 +1,10 @@
 ---
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        FS_VERSION: ${FS_VERSION:-stable}
     environment:
       DB_TYPE: mysql
       DB_HOST: mariadb
