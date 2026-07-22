@@ -144,6 +144,7 @@ install_plugins() {
     # Format: pluginname:downloadid
     local plugin_map="
         verifactu:448
+        proyectos:61
         multiempresa:464
         webportal:460
         openpaypf:400
@@ -188,7 +189,7 @@ install_plugins() {
                 echo "  Type: Plugin name (mapped to ID: $mapped_id)"
             else
                 echo "  ERROR: Unknown plugin name: $plugin"
-                echo "  Available named plugins: verifactu, multiempresa, webportal, openpaypf, notificaciones, pagosonline"
+                echo "  Available named plugins: verifactu, proyectos, multiempresa, webportal, openpaypf, notificaciones, pagosonline"
                 echo "  Tip: Use download ID or full URL instead"
                 failed=1
                 break
