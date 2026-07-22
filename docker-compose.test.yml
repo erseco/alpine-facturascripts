@@ -17,7 +17,9 @@ services:
       FS_LANG: es_ES
       FS_TIMEZONE: UTC
       FS_DEBUG: false
-      FS_PLUGINS: "verifactu"
+      # The workflow pins compatible plugin builds for historical releases and
+      # uses the current Verifactu build for active stable/beta channels.
+      FS_PLUGINS: "${TEST_FS_PLUGINS-verifactu}"
 
     depends_on:
       - mariadb

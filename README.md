@@ -276,12 +276,12 @@ The `FS_PLUGINS` variable accepts plugins in multiple formats:
 
 1. **Plugin Names** (mapped to download IDs):
    ```yaml
-   FS_PLUGINS: "verifactu multiempresa webportal"
+   FS_PLUGINS: "verifactu proyectos multiempresa webportal"
    ```
 
 2. **Download IDs** (numeric):
    ```yaml
-   FS_PLUGINS: "448 464 460"
+   FS_PLUGINS: "448 61 464 460"
    ```
 
 3. **Full URLs**:
@@ -302,6 +302,7 @@ The `FS_PLUGINS` variable accepts plugins in multiple formats:
 | Plugin Name       | ID  | Description                      | URL                                      |
 |-------------------|-----|----------------------------------|------------------------------------------|
 | `verifactu`       | 448 | VERI*FACTU compliance for Spain  | [Info](https://facturascripts.com/plugins/verifactu) |
+| `proyectos`       | 61  | Project and task management      | [Info](https://facturascripts.com/plugins/Proyectos) |
 | `multiempresa`    | 464 | Multi-company management         | [Info](https://facturascripts.com/plugins/multiempresa) |
 | `webportal`       | 460 | Customer web portal              | [Info](https://facturascripts.com/plugins/webportal) |
 | `openpaypf`       | 400 | OpenPay payment gateway          | [Info](https://facturascripts.com/plugins/openpaypf) |
