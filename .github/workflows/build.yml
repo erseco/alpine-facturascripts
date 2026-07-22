@@ -12,11 +12,25 @@ on:
       fs_version:
         description: 'FacturaScripts version'
         required: true
+      fs_channel:
+        description: 'Tags to update in addition to the version'
+        required: true
+        default: version
+        type: choice
+        options:
+          - version
+          - stable
+          - beta
   workflow_call:
     inputs:
       fs_version:
         description: 'FacturaScripts version tag'
         required: true
+        type: string
+      fs_channel:
+        description: 'Release channel: version, stable or beta'
+        required: false
+        default: version
         type: string
 
 permissions:
@@ -32,7 +46,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # Step 2: Extract metadata for Docker
+      # Step 2: Determine the exact upstream build and its Docker aliases.
+      # A reusable workflow keeps the caller ref (usually main), so metadata
+      # cannot infer the FacturaScripts version from github.ref.
+      - name: Determine FacturaScripts version
+        id: fs_version
+        env:
+          INPUT_VERSION: ${{ inputs.fs_version }}
+          INPUT_CHANNEL: ${{ inputs.fs_channel }}
+        run: |
+          version="${INPUT_VERSION#v}"
+          channel="${INPUT_CHANNEL:-version}"
+
+          if [[ -z "$version" && "$GITHUB_REF" == refs/tags/* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+          elif [[ -z "$version" ]]; then
+            version="stable"
+            channel="main"
+          fi
+
+          [[ "$version" =~ ^[0-9]{4}(\.[0-9]+)?$|^stable$|^beta$ ]] || {
+            echo "Invalid FacturaScripts version: $version" >&2
+            exit 1
+          }
+          [[ "$channel" =~ ^(version|stable|beta|main)$ ]] || {
+            echo "Invalid release channel: $channel" >&2
+            exit 1
+          }
+
+          {
+            echo "version=$version"
+            echo "publish_version=$([[ "$version" =~ ^[0-9] ]] && echo true || echo false)"
+            echo "stable=$([[ "$channel" == stable ]] && echo true || echo false)"
+            echo "beta=$([[ "$channel" == beta ]] && echo true || echo false)"
+            echo "main=$([[ "$channel" == main ]] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Step 3: Extract metadata for Docker
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v6
@@ -41,11 +91,10 @@ jobs:
             ${{ github.repository }}
             ghcr.io/${{ github.repository }}
           tags: |
-            type=match,pattern=v?(.*),group=1
-            type=match,pattern=v?(\d+)\.\d+,group=1
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ steps.fs_version.outputs.version }},enable=${{ steps.fs_version.outputs.publish_version }}
+            type=raw,value=latest,enable=${{ steps.fs_version.outputs.stable }}
+            type=raw,value=beta,enable=${{ steps.fs_version.outputs.beta }}
+            type=raw,value=main,enable=${{ steps.fs_version.outputs.main }}
 
       # Step 3: Set up QEMU for multi-platform builds
       - name: Set up QEMU
@@ -91,30 +140,16 @@ jobs:
           sarif_file: hadolint-results.sarif
           category: hadolint-dockerfile
 
-      # Step 7: Determine FacturaScripts version
-      - name: Determine FacturaScripts version
-        id: fs_version
-        run: |
-          if [[ -n "${{ inputs.fs_version }}" ]]; then
-            # Version passed from workflow_call or workflow_dispatch
-            echo "version=${{ inputs.fs_version }}" >> $GITHUB_OUTPUT
-          elif [[ $GITHUB_REF == refs/tags/* ]]; then
-            # Use the specific tag (e.g., v2025.81)
-            VERSION=${GITHUB_REF#refs/tags/}
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          else
-            # For main/PR, use the latest release
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
-
       # Step 8: Test build (for PRs)
       - name: Debug Build on PR
         if: github.event_name == 'pull_request'
         run: |
-          docker buildx build --load .
+          docker buildx build --load --build-arg "FS_VERSION=${{ steps.fs_version.outputs.version }}" .
 
       # Step 9: Test the built image
       - name: Test
+        env:
+          FS_VERSION: ${{ steps.fs_version.outputs.version }}
         run: |
           docker compose version
           docker compose --file docker-compose.test.yml up --exit-code-from sut --timeout 10 --build
@@ -138,7 +173,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.tags && steps.meta.outputs.tags[0] || 'main' }}
+          image-ref: ghcr.io/${{ github.repository }}:${{ steps.fs_version.outputs.publish_version == 'true' && steps.fs_version.outputs.version || 'main' }}
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'

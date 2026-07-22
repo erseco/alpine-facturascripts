@@ -1,81 +1,128 @@
-name: Sync FacturaScripts Tags
+name: Sync FacturaScripts Releases
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Every Sunday at midnight
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: sync-facturascripts-releases
+  cancel-in-progress: false
+
 jobs:
-  sync-tags:
+  discover:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      new_tags: ${{ steps.process.outputs.new_tags }}
-
+      builds: ${{ steps.discover.outputs.builds }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Get FacturaScripts releases
+      - name: Discover unpublished FacturaScripts builds
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCKER_REPOSITORY: ${{ github.repository }}
         run: |
-          # Only releases that have CORE.zip
-          FS_TAGS=$(curl -s "https://api.github.com/repos/NeoRazorX/facturascripts/releases" \
-            | jq -r '.[] | select(.assets[].name == "CORE.zip") | .tag_name')
-          echo "fs_tags=$(echo "$FS_TAGS" | tr '\n' ' ')" >> $GITHUB_ENV
+          set -euo pipefail
 
-      - name: Get existing tags
-        run: |
-          git fetch --tags
-          echo "existing_tags=$(git tag -l | tr '\n' ' ')" >> $GITHUB_ENV
+          get_channel_version() {
+            local channel="$1" headers version
+            headers=$(curl --fail --silent --show-error --location --head \
+              "https://facturascripts.com/DownloadBuild/1/${channel}")
+            version=$(sed -nE 's/.*filename="?CORE-([0-9]{4}(\.[0-9]+)?)\.zip"?.*/\1/ip' \
+              <<< "$headers" | tail -1)
+            [[ "$version" =~ ^[0-9]{4}(\.[0-9]+)?$ ]] || {
+              echo "Could not detect the ${channel} version" >&2
+              exit 1
+            }
+            printf '%s' "$version"
+          }
 
-      - name: Process missing tags
-        id: process
-        run: |
-          EXISTING=" ${{ env.existing_tags }} "
-          NEW_TAGS=()
+          stable=$(get_channel_version stable)
+          beta=$(get_channel_version beta)
+          docker_tags=$(curl --fail --silent --show-error \
+            "https://hub.docker.com/v2/repositories/${DOCKER_REPOSITORY}/tags?page_size=100")
+          releases=$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/NeoRazorX/facturascripts/releases?per_page=100')
 
-          for tag in ${{ env.fs_tags }}; do
-            [[ ! "$tag" =~ ^v ]] && continue
-            [[ "$EXISTING" == *" $tag "* ]] && continue
+          # GitHub does not flag FacturaScripts beta releases as prereleases.
+          # Walk backwards only until the first image already published so an
+          # old Docker Hub cleanup cannot accidentally rebuild every release.
+          candidates=()
+          while IFS= read -r tag; do
+            version="${tag#v}"
+            if jq -e --arg version "$version" \
+              '.results[] | select(.name == $version)' <<< "$docker_tags" >/dev/null; then
+              break
+            fi
+            candidates+=("$version")
+          done < <(jq -r '.[] | select(any(.assets[]?; .name == "CORE.zip")) | .tag_name' \
+            <<< "$releases")
+          candidates+=("$stable" "$beta")
 
-            echo "Creating tag: $tag"
-            git tag "$tag"
-            git push origin "$tag"
+          builds='[]'
+          seen=' '
+          for version in "${candidates[@]}"; do
+            [[ "$version" =~ ^[0-9]{4}(\.[0-9]+)?$ ]] || continue
+            [[ "$seen" == *" $version "* ]] && continue
+            seen+="$version "
 
-            NEW_TAGS+=("$tag")
+            channel=version
+            [[ "$version" == "$stable" ]] && channel=stable
+            [[ "$version" == "$beta" ]] && channel=beta
+
+            version_digest=$(jq -r --arg version "$version" \
+              '.results[] | select(.name == $version) | .digest' <<< "$docker_tags")
+            rebuild=false
+            if [[ -z "$version_digest" ]]; then
+              rebuild=true
+            elif [[ "$channel" != version ]]; then
+              alias_digest=$(jq -r --arg channel "$channel" \
+                '.results[] | select(.name == (if $channel == "stable" then "latest" else "beta" end)) | .digest' \
+                <<< "$docker_tags")
+              [[ "$version_digest" == "$alias_digest" ]] || rebuild=true
+            fi
+
+            if [[ "$rebuild" == true ]]; then
+              builds=$(jq -c --arg version "$version" --arg channel "$channel" \
+                '. + [{version: $version, channel: $channel}]' <<< "$builds")
+            fi
+
+            if ! git rev-parse --verify --quiet "refs/tags/v${version}" >/dev/null; then
+              git tag "v${version}"
+              git push origin "v${version}"
+            fi
           done
 
-          # Output as JSON array for matrix strategy
-          if [ ${#NEW_TAGS[@]} -eq 0 ]; then
-            echo "new_tags=[]" >> $GITHUB_OUTPUT
-          else
-            JSON_ARRAY=$(printf '%s\n' "${NEW_TAGS[@]}" | jq -R . | jq -sc .)
-            echo "new_tags=$JSON_ARRAY" >> $GITHUB_OUTPUT
-          fi
-          echo "Created ${#NEW_TAGS[@]} new tags: ${NEW_TAGS[*]}"
+          echo "builds=$builds" >> "$GITHUB_OUTPUT"
+          {
+            echo '# FacturaScripts release discovery'
+            echo "- Stable: ${stable}"
+            echo "- Beta: ${beta}"
+            echo "- Builds queued: $(jq -r 'if length == 0 then "none" else map(.version + " (" + .channel + ")") | join(", ") end' <<< "$builds")"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Summary
-        run: |
-          echo "# FacturaScripts Tags Sync" >> $GITHUB_STEP_SUMMARY
-          echo "- Releases with CORE.zip: $(echo "${{ env.fs_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          echo "- Existing tags: $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          NEW_TAGS='${{ steps.process.outputs.new_tags }}'
-          echo "- New tags created: $(echo "$NEW_TAGS" | jq -r 'join(", ")')" >> $GITHUB_STEP_SUMMARY
-
-  # Trigger build for each new tag
   build:
-    needs: sync-tags
-    if: needs.sync-tags.outputs.new_tags != '[]'
+    needs: discover
+    if: needs.discover.outputs.builds != '[]'
     permissions:
       contents: read
       packages: write
       security-events: write
     strategy:
+      fail-fast: false
+      max-parallel: 2
       matrix:
-        tag: ${{ fromJson(needs.sync-tags.outputs.new_tags) }}
+        release: ${{ fromJson(needs.discover.outputs.builds) }}
     uses: ./.github/workflows/build.yml
     with:
-      fs_version: ${{ matrix.tag }}
+      fs_version: ${{ matrix.release.version }}
+      fs_channel: ${{ matrix.release.channel }}
     secrets: inherit
