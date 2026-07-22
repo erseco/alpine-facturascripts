@@ -65,7 +65,7 @@ trap 'rm -f "$notes_file"' EXIT
 if gh release view "$tag" --repo "$REPOSITORY" >/dev/null 2>&1; then
   gh release edit "$tag" \
     --repo "$REPOSITORY" \
-    --title "FacturaScripts $VERSION Docker image" \
+    --title "$VERSION" \
     --notes-file "$notes_file" \
     --prerelease="$prerelease" \
     --latest="$latest"
@@ -73,7 +73,7 @@ else
   gh release create "$tag" \
     --repo "$REPOSITORY" \
     --verify-tag \
-    --title "FacturaScripts $VERSION Docker image" \
+    --title "$VERSION" \
     --notes-file "$notes_file" \
     --prerelease="$prerelease" \
     --latest="$latest"
