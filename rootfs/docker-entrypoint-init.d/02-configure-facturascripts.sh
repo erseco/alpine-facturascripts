@@ -24,6 +24,10 @@ create_folders() {
     [ ! -d "/var/www/html/volume/MyFiles" ] && mkdir -p /var/www/html/volume/MyFiles
     [ ! -d "/var/www/html/volume/Plugins" ] && mkdir -p /var/www/html/volume/Plugins
 
+    # PDF font-metrics cache (rospdf/pdf-php). Without this directory the first
+    # PDF export fails with a TypeError because fopen() cannot create the file.
+    [ ! -d "/var/www/html/volume/MyFiles/Cache" ] && mkdir -p /var/www/html/volume/MyFiles/Cache
+
     # Set permissions
     chown -R nobody:nobody /var/www/html/Dinamic
     chown -R nobody:nobody /var/www/html/volume

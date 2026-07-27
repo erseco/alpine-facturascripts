@@ -144,7 +144,7 @@ When you provide the `FS_INITIAL_USER` and `FS_INITIAL_PASS` environment variabl
 The container automatically creates:
 - Complete `config.php` with all necessary settings
 - `.htaccess` file for URL rewriting
-- Required folders (`MyFiles`, `Plugins`, `Dinamic`)
+- Required folders (`MyFiles`, `MyFiles/Cache`, `Plugins`, `Dinamic`)
 - Database tables and initial user
 
 ### Manual Installation

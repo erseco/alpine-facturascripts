@@ -67,7 +67,7 @@ RUN set -x && \
     rm -rf /tmp/facturascripts && \
     \
     # Create the volume structure for persistent data
-    mkdir -p /var/www/html/volume/MyFiles /var/www/html/volume/Plugins && \
+    mkdir -p /var/www/html/volume/MyFiles/Cache /var/www/html/volume/Plugins && \
     rm -rf /var/www/html/MyFiles /var/www/html/Plugins && \
     ln -s volume/MyFiles /var/www/html/MyFiles && \
     ln -s volume/Plugins /var/www/html/Plugins && \

@@ -26,6 +26,7 @@ This repository contains a lightweight Docker image for **FacturaScripts** (open
 - `/var/www/html/` - FacturaScripts installation directory (in container)
 - `/var/www/html/volume/` - Persistent volume mount point containing:
   - `MyFiles/` - Uploaded files and documents
+  - `MyFiles/Cache/` - PDF font-metrics cache (rospdf/pdf-php)
   - `Plugins/` - Installed plugins
 
 ### Key Features
