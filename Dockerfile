@@ -1,6 +1,6 @@
-# Base image using alpine-php-webserver
-ARG ARCH=
-FROM ${ARCH}erseco/alpine-php-webserver:3.23.6-1
+# Base image: PHP 8.4 on Alpine 3.24. Floating tag, so rebuilds pick up
+# alpine-php-webserver's PHP security releases (Alpine 3.23 lags on them).
+FROM ghcr.io/erseco/alpine-php-webserver:3.24-php84
 
 LABEL maintainer="Ernesto Serrano <info@ernesto.es>"
 
